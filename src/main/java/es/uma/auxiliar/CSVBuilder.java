@@ -27,25 +27,35 @@ public class CSVBuilder {
 
         int skip = 0;
         if(per == null) per = "15M";
-        if(per.equals("30M")) skip = 1;
-        else if(per.equals("60M")) skip = 3;
-        else if(per.equals("1D")) skip = 95; // 24*4 - 1;
+        switch (per) {
+            case "30M":
+                skip = 1;
+                break;
+            case "60M":
+                skip = 3;
+                break;
+            case "1D":
+                skip = 95; // 24*4 - 1;
+                break;
+        }
 
-        Instant date = null;
-        Integer counter_doc = 0;
+        Instant date;
+        int counter_doc = 0;
         for(ArrayList<Document> ad: data) {
-            Integer counter_row = 0;
-            Integer index  = 0;
+            int counter_row = 0;
+            int index  = 0;
             String name = "Device" + counter_doc;
             for (Document d : ad) {
-                String s = d.get("TimeInstant", String.class);
+                Document aux = (Document) d.get("TimeInstant");
+                String s = aux.get("value", String.class);
                 TemporalAccessor ta = DateTimeFormatter.ISO_INSTANT.parse(s);
                 date = Instant.from(ta);
-                Integer counter_attr = 0;
+                int counter_attr = 0;
                 for (String a : attr) {
-                    Double val = null;
+                    Double val;
                     try {
-                        val = d.getDouble(a);
+                        Document aux2 = (Document) d.get(a);
+                        val = aux2.getDouble("value");
                     } catch (ClassCastException e) {
                         // System.out.println("Parameter is not exist or it is not a number");
                         continue;
@@ -58,6 +68,7 @@ public class CSVBuilder {
                         if (counter_doc == 0 && counter_attr == 0) {
                             ArrayList<Double> ai = new ArrayList<>();
                             getData().put(date, ai);
+                            counter_attr++;
                         }
                         ArrayList<Double> ai = getData().get((getData().keySet().toArray())[index]);
                         ai.add(val);
