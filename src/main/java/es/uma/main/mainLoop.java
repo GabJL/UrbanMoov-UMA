@@ -84,6 +84,7 @@ public class mainLoop {
             // Call algorithm
             //ArrayList<ArrayList<Integer>> resAlg =
             ml = executeAlgorithm(requestEvent, "temporal", "test.csv", data.size());
+            ml.setRequestEvent(requestEvent);
         }else {
             ml = loadModel(requestEvent, db);
             if(ml == null){
