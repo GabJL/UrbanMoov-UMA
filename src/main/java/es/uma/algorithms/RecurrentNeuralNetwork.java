@@ -140,8 +140,7 @@ public class RecurrentNeuralNetwork {
         int init = 0;
 
         for (String key : keys) {
-            INDArray values = paramTable.get(key);
-            long [] v = values.shape();
+            INDArray values = Nd4j.toFlattened(paramTable.get(key));
             for(double d: values.toDoubleVector()){
                 weights[init] = d;
                 init++;
@@ -183,7 +182,7 @@ public class RecurrentNeuralNetwork {
         MSE = 0.;
         MAE = 0.;
         MaxE = 0.;
-        Double MaxC = 0.;
+        double MaxC = 0.;
         int count = 0;
 
         while (ds.hasNext()) {
@@ -201,7 +200,7 @@ public class RecurrentNeuralNetwork {
                     MSE += Math.pow((cor - pre), 2);
                     MAE += Math.abs((cor - pre));
                     if (Math.abs((cor - pre)) > MaxE) MaxE = 100 - Math.abs((cor - pre));
-                    Double corD = (batch.getLabels().get(NDArrayIndex.point(0), NDArrayIndex.all(), NDArrayIndex.point(batch.getLabels().size(2) - 1))).getDouble(0);
+                    double corD = (batch.getLabels().get(NDArrayIndex.point(0), NDArrayIndex.all(), NDArrayIndex.point(batch.getLabels().size(2) - 1))).getDouble(0);
                     if(cor > MaxC) MaxC = corD;
                 } else {
                     Double pre = (output.get(NDArrayIndex.point(0), NDArrayIndex.all(), NDArrayIndex.point(output.size(2) - 1))).getDouble(0);
@@ -220,7 +219,7 @@ public class RecurrentNeuralNetwork {
         MSE = MSE/count;
         MAE = MAE/count;
         CL = (MaxC - MSE)/MaxC;
-        CL = (CL<0.6)?0.6:CL;
+        CL = Math.max(CL, 0.6);
 
     }
 
@@ -239,7 +238,7 @@ public class RecurrentNeuralNetwork {
                 double pre = (output.get(NDArrayIndex.point(0), NDArrayIndex.all(), NDArrayIndex.point(output.size(2) - 1))).getDouble(j);
                 //);
                 if(pre < 0) pre = 0;
-                list.add((double) pre);
+                list.add(pre);
             }
             prediction.add(list);
         }
