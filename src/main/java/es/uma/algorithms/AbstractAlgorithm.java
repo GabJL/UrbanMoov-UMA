@@ -103,6 +103,7 @@ abstract public class AbstractAlgorithm extends AbstractAlgorithmRunner {
 
     public TrainedModel getModel(){
         DoubleSolution solution = getBestSolution();
+        getProblem().test(solution);
         double[] x = new double[solution.getNumberOfVariables()];
         for (int i = 0; i < solution.getNumberOfVariables(); i++) {
             x[i] = solution.getVariableValue(i) ;
