@@ -38,13 +38,13 @@ public class TrainedModel {
         ArrayList<ArrayList<Double>> a = null;
         Integer number = null;
         switch(getAlgorithmConfiguration().getPrediction()){
-            case LARGE: number = 30*DAY;
-            case MEDIUM: number = 7*DAY;
+            case LARGE: number = 30*DAY; break;
+            case MEDIUM: number = 7*DAY; break;
             case SHORT: number = DAY;
         }
         switch (getAlgorithmConfiguration().getPredictionPeriod()){
-            case D1: number = number / DAY;
-            case M60: number = number / 4;
+            case D1: number = number / DAY; break;
+            case M60: number = number / 4; break;
             case M30: number = number / 2;
         }
 
@@ -60,6 +60,7 @@ public class TrainedModel {
     public void train(){
         try {
             getNet().train(getDs().getTrainingData());
+            getNet().test(getDs().getTestData(), false);
         } catch (Exception e) {
             e.printStackTrace();
         }
