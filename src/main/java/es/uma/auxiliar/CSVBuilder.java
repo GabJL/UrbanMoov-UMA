@@ -48,16 +48,21 @@ public class CSVBuilder {
             for (Document d : ad) {
                 Document aux = (Document) d.get("TimeInstant");
                 String s = aux.get("value", String.class);
+                s = s.replace(' ', 'T');
+                s = s.substring(0, s.indexOf('.')) + 'Z';
+                // /**/ System.out.println("test Fecha:" + s);
                 TemporalAccessor ta = DateTimeFormatter.ISO_INSTANT.parse(s);
                 date = Instant.from(ta);
                 int counter_attr = 0;
                 for (String a : attr) {
+                    // /**/ System.out.println("test atributo:" + a);
                     Double val;
                     try {
                         Document aux2 = (Document) d.get(a);
-                        val = aux2.getDouble("value");
+                        val = Double.parseDouble(aux2.getString("value"));
+                        // /**/ System.out.println("\ntest valor:" + val);
                     } catch (ClassCastException e) {
-                        // System.out.println("Parameter is not exist or it is not a number");
+                        // /**/ System.out.println("Parameter is not exist or it is not a number");
                         continue;
                     }
                     if (counter_row == 0) {
