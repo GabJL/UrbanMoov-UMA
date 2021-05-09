@@ -7,6 +7,7 @@ import org.bson.Document;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.ArrayList;
+import java.util.Set;
 
 import static com.mongodb.client.model.Filters.*;
 
@@ -74,8 +75,16 @@ public class databaseAccess {
     }
 
     public void setData(String collection, ArrayList<Document> data){
-        getMongoDB().createCollection(collection);
+        try {
+            // /**/ System.out.println("test: building collection");
+            getMongoDB().createCollection(collection);
+            // /**/ System.out.println("test: building collection Ok");
+        }catch (MongoCommandException e){
+            // /**/ System.out.println("test building collection: already done");
+        }
+        // /**/ System.out.println("test: writing data");
         getMongoDB().getCollection(collection).insertMany(data);
+        // /**/ System.out.println("test: writing data done");
     }
 
     public Document getModel(String collection, String modelID){
@@ -90,17 +99,25 @@ public class databaseAccess {
     }
 
     public void setModel(String collection, Document model){
-        if(getMongoDB().getCollection(collection).count() == 0){
+        // /**/ System.out.println("test Creando BD: Hay colección? " + collection);
+        try {
             getMongoDB().createCollection(collection);
+           // /**/ System.out.println("test No");
+        }catch (MongoCommandException e){
+            // /**/ System.out.println("test Sí");
         }
+
         BasicDBObject whereQuery = new BasicDBObject();
         whereQuery.put("modelID", model.get("modelID"));
         FindIterable<Document> iterable = null;
         iterable = getMongoDB().getCollection(collection).find(whereQuery);
+        // /**/ System.out.println("test: Existe el modelo?");
         if(iterable.first() == null){
+            // /**/ System.out.println("test: No, se crea");
             getMongoDB().getCollection(collection).insertOne(model);
         } else {
-            getMongoDB().getCollection(collection).updateOne(whereQuery, model);
+            // /**/ System.out.println("test: Si, se actualiza");
+            getMongoDB().getCollection(collection).replaceOne(eq("modelID", model.get("modelID")), model);
         }
     }
 }
