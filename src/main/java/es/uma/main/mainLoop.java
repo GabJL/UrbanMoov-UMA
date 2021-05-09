@@ -16,12 +16,12 @@ public class mainLoop {
     public static void main(String [] argv){
         /// TEST: Values for testing
         /* queueCommunication queue = new queueCommunication(
-                "invitado", // System.getenv("UM_QUEUE_USER"),
-                "invitado", //System.getenv("UM_QUEUE_PASS"),
+                "uma-client", // System.getenv("UM_QUEUE_USER"),
+                "cfKCWpAK3dsS9hrk", //System.getenv("UM_QUEUE_PASS"),
                 "127.0.0.1", //System.getenv("UM_QUEUE_HOST"),
-                "/", //System.getenv("UM_QUEUE_VHOST"),
-                5672 //Integer.parseInt(System.getenv("UM_QUEUE_PORT"))
-        );*/
+                "uma", //System.getenv("UM_QUEUE_VHOST"),
+                15672 //Integer.parseInt(System.getenv("UM_QUEUE_PORT"))
+        ); */
         queueCommunication queue = new queueCommunication(
                 System.getenv("UM_QUEUE_USER"),
                 System.getenv("UM_QUEUE_PASS"),
@@ -92,11 +92,15 @@ public class mainLoop {
             }
             if(requestEvent.operation.equals("PREDICT")){
                 // Connect to database with event and get data
-                ArrayList<ArrayList<Document>> data = connectDB(ml.getRequestEvent());
-                if(data == null || data.isEmpty()){
-                    System.out.println("Invalid datasources or no datasources in request event");
-                    return null;
+                ArrayList<ArrayList<Document>> data = connectDB(requestEvent);
+                if(data == null || data.isEmpty()) {
+                    data = connectDB(ml.getRequestEvent());
+                    if (data == null || data.isEmpty()) {
+                        System.out.println("Invalid datasources or no datasources in request event");
+                        return null;
+                    }
                 }
+
                 /// Real Call
                 // generate CSV
                 CSVBuilder csv = new CSVBuilder("temporal", "test.csv", data, ml.getRequestEvent().model.attributes, ml.getRequestEvent().model.period);
@@ -127,6 +131,7 @@ public class mainLoop {
     }
 
     private static void writeModel(TrainedModel ml, databaseAccess db, String collection) {
+        // /**/ System.out.println("test: Escribiendo modelo ...");
         AlgorithmModel am = new AlgorithmModel();
         am.request = ml.getRequestEvent();
         am.layers = ml.getNet().getLayers();
@@ -134,6 +139,7 @@ public class mainLoop {
         am.weights = ml.getNet().getParameters();
         Gson parser = new Gson();
         Document doc = Document.parse(parser.toJson(am));
+        // /**/ System.out.println("test: Escribiendo modelo ...");
         db.setModel(collection, doc);
     }
 
@@ -164,10 +170,13 @@ public class mainLoop {
             csv.writeFile();
         } else {
             // Connect to database with event and get data
-            ArrayList<ArrayList<Document>> data = connectDB(re_original);
-            if(data == null || data.isEmpty()){
-                System.out.println("Invalid datasources or no datasources in request event");
-                return null;
+            ArrayList<ArrayList<Document>> data = connectDB(requestEvent);
+            if(data == null || data.isEmpty()) {
+                data = connectDB(re_original);
+                if (data == null || data.isEmpty()) {
+                    System.out.println("Invalid datasources or no datasources in request event");
+                    return null;
+                }
             }
             // generate CSV
             CSVBuilder csv = new CSVBuilder("temporal", "test.csv", data, re_original.model.attributes, re_original.model.period);
@@ -175,7 +184,7 @@ public class mainLoop {
         }
 
         TrainedModel model = new TrainedModel(ac);
-        model.setModelID(am.modelID);
+        model.setModelID(requestEvent.model.modelID);
         model.setRequestEvent(re_original);
         return model;
     }
@@ -283,11 +292,13 @@ public class mainLoop {
     }
 
     private static void writeDatabase(Output output, ArrayList<Document> result) {
+        // /**/ System.out.println("test: writing predictions");
         if(output != null){
             databaseAccess db = getDB(output.source);
             if(db == null){
                 System.err.println("Incorrent Datasource");
             } else {
+                // /**/ System.out.println("test: writing predictions data");
                 db.setData(output.source.collection, result);
             }
         }
@@ -320,7 +331,11 @@ public class mainLoop {
         ArrayList<Document> result = new ArrayList<>();
         for(ArrayList<Document> ad: data){
             for(Document d: ad){
-                String s = d.get("TimeInstant", String.class);
+                Document aux = (Document) d.get("TimeInstant");
+                String s = aux.get("value", String.class);
+                s = s.replace(' ', 'T');
+                s = s.substring(0, s.indexOf('.')) + 'Z';
+                // /**/ System.out.println("test Fecha:" + s);
                 TemporalAccessor ta = DateTimeFormatter.ISO_INSTANT.parse(s);
                 date = Instant.from(ta);
                 if(max_date == null){
@@ -328,13 +343,16 @@ public class mainLoop {
                 } else if(date.compareTo(max_date) > 0){
                     max_date = date;
                 }
+                // /**/ System.out.println("Max date: " + DateTimeFormatter.ISO_INSTANT.format(max_date));
             }
         }
         for(ArrayList<Double> ai: res){
             max_date = max_date.plusSeconds(time);
-            int index = 0;
+            int index = 1;
             Document doc = new Document();
-            doc.put("TimeInstant",DateTimeFormatter.ISO_INSTANT.format(max_date));
+            doc.put("TimeInstant",DateTimeFormatter.ISO_INSTANT.format(max_date).replace('T',' ').replace("Z",".0"));
+            // /**/ System.out.println("TimeInstant " + DateTimeFormatter.ISO_INSTANT.format(max_date));
+            // /**/ System.out.println("ai " + ai.toString());
             for(Double i: ai){
                 doc.put(titles.get(index), i);
                 index++;
