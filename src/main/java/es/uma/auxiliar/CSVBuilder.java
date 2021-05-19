@@ -17,8 +17,18 @@ public class CSVBuilder {
     private String path;
     private String filename;
 
+
+    public static String convertDate(String s){
+        String res = s.replace(' ', 'T');
+        if(s.indexOf('.')  > 0)
+            res = res.substring(0, s.indexOf('.'));
+        res += 'Z';
+        return res;
+    }
+
+
     // Data should be correct
-    public CSVBuilder(String path, String filename, ArrayList<ArrayList<Document>> data, String [] attr, String per ){
+    public CSVBuilder(String path, String filename, ArrayList<ArrayList<Document>> data, String [] attr, String per, String sfrom, String sto ){
         setData(new LinkedHashMap<>());
         setTitles(new ArrayList<>());
         getTitles().add("TimeInstant");
@@ -39,7 +49,9 @@ public class CSVBuilder {
                 break;
         }
 
-        Instant date;
+        Instant date, from = null, to = null;
+        if(sfrom != null) from = Instant.from(DateTimeFormatter.ISO_INSTANT.parse(CSVBuilder.convertDate(sfrom)));
+        if(sto != null) to = Instant.from(DateTimeFormatter.ISO_INSTANT.parse(CSVBuilder.convertDate(sto)));
         int counter_doc = 0;
         for(ArrayList<Document> ad: data) {
             int counter_row = 0;
@@ -47,12 +59,12 @@ public class CSVBuilder {
             String name = "Device" + counter_doc;
             for (Document d : ad) {
                 Document aux = (Document) d.get("TimeInstant");
-                String s = aux.get("value", String.class);
-                s = s.replace(' ', 'T');
-                s = s.substring(0, s.indexOf('.')) + 'Z';
+                String s = convertDate(aux.get("value", String.class));
                 // /**/ System.out.println("test Fecha:" + s);
                 TemporalAccessor ta = DateTimeFormatter.ISO_INSTANT.parse(s);
                 date = Instant.from(ta);
+                if(from != null && date.compareTo(from) < 0) continue;
+                if(to != null && date.compareTo(to) > 0) continue;
                 int counter_attr = 0;
                 for (String a : attr) {
                     // /**/ System.out.println("test atributo:" + a);
