@@ -160,8 +160,8 @@ public class AlgorithmConfiguration {
     public void setPrediction(String p){
         if(p == null) p = "";
         if(p.equals("MEDIUM")) prediction = Prediction.MEDIUM;
-        else if(p.equals("LARGE")) prediction = Prediction.LARGE;
-        else prediction = Prediction.SHORT;
+        else if(p.equals("SHORT")) prediction = Prediction.SHORT;
+        else prediction = Prediction.LARGE;
     }
     public int getPeriod() { return period; }
 
