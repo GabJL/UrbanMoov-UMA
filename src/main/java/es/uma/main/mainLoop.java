@@ -79,12 +79,14 @@ public class mainLoop {
             }
             /// Real Call
             // generate CSV
-            CSVBuilder csv = new CSVBuilder("temporal", "test.csv", data, requestEvent.model.attributes, requestEvent.model.period);
+            CSVBuilder csv = new CSVBuilder("temporal", "test.csv", data, requestEvent.model.attributes,
+                                                requestEvent.model.period, requestEvent.model.from, requestEvent.model.to);
             csv.writeFile();
             // Call algorithm
             //ArrayList<ArrayList<Integer>> resAlg =
             ml = executeAlgorithm(requestEvent, "temporal", "test.csv", data.size());
             ml.setRequestEvent(requestEvent);
+            ml.train();
         }else {
             ml = loadModel(requestEvent, db);
             if(ml == null){
@@ -93,8 +95,10 @@ public class mainLoop {
             if(requestEvent.operation.equals("PREDICT")){
                 // Connect to database with event and get data
                 ArrayList<ArrayList<Document>> data = connectDB(requestEvent);
+                Boolean nuevos = true;
                 if(data == null || data.isEmpty()) {
                     data = connectDB(ml.getRequestEvent());
+                    nuevos = false;
                     if (data == null || data.isEmpty()) {
                         System.out.println("Invalid datasources or no datasources in request event");
                         return null;
@@ -103,10 +107,12 @@ public class mainLoop {
 
                 /// Real Call
                 // generate CSV
-                CSVBuilder csv = new CSVBuilder("temporal", "test.csv", data, ml.getRequestEvent().model.attributes, ml.getRequestEvent().model.period);
+                CSVBuilder csv = new CSVBuilder("temporal", "test.csv", data, ml.getRequestEvent().model.attributes,
+                        requestEvent.model.period, requestEvent.model.from, requestEvent.model.to);
                 csv.writeFile();
                 // Calculate result
                 ArrayList<Document> result;
+                if(nuevos) ml.train();
                 ArrayList< ArrayList <Double>> resAlg = ml.getPrediction();
 
                 // Generate Results
@@ -166,7 +172,8 @@ public class mainLoop {
                 return null;
             }
             // generate CSV
-            CSVBuilder csv = new CSVBuilder("temporal", "test.csv", data, requestEvent.model.attributes, requestEvent.model.period);
+            CSVBuilder csv = new CSVBuilder("temporal", "test.csv", data, requestEvent.model.attributes,
+                    requestEvent.model.period, requestEvent.model.from, requestEvent.model.to);
             csv.writeFile();
         } else {
             // Connect to database with event and get data
@@ -179,7 +186,8 @@ public class mainLoop {
                 }
             }
             // generate CSV
-            CSVBuilder csv = new CSVBuilder("temporal", "test.csv", data, re_original.model.attributes, re_original.model.period);
+            CSVBuilder csv = new CSVBuilder("temporal", "test.csv", data, re_original.model.attributes,
+                    requestEvent.model.period, requestEvent.model.from, requestEvent.model.to);
             csv.writeFile();
         }
 
@@ -325,25 +333,31 @@ public class mainLoop {
                 time = 24 * 60 * 60;
                 break;
         }
-
+        /**/ System.out.println("periodo: " + requestEvent.model.period + " time: " + time + " values: " + data.size());
+        if(requestEvent.model.usecase != null && requestEvent.model.usecase.equals("PARKING")) {
+            res = postprocessing(res);
+            titles.add("global");
+        }
 
         Instant date = null, max_date = null;
         ArrayList<Document> result = new ArrayList<>();
-        for(ArrayList<Document> ad: data){
-            for(Document d: ad){
-                Document aux = (Document) d.get("TimeInstant");
-                String s = aux.get("value", String.class);
-                s = s.replace(' ', 'T');
-                s = s.substring(0, s.indexOf('.')) + 'Z';
-                // /**/ System.out.println("test Fecha:" + s);
-                TemporalAccessor ta = DateTimeFormatter.ISO_INSTANT.parse(s);
-                date = Instant.from(ta);
-                if(max_date == null){
-                    max_date = date;
-                } else if(date.compareTo(max_date) > 0){
-                    max_date = date;
+        if(requestEvent.model.to != null){
+            max_date = Instant.from(DateTimeFormatter.ISO_INSTANT.parse(CSVBuilder.convertDate(requestEvent.model.to)));
+        } else {
+            for(ArrayList<Document> ad: data){
+                for(Document d: ad){
+                    Document aux = (Document) d.get("TimeInstant");
+                    String s = CSVBuilder.convertDate(aux.get("value", String.class));
+                    // /**/ System.out.println("test Fecha:" + s);
+                    TemporalAccessor ta = DateTimeFormatter.ISO_INSTANT.parse(s);
+                    date = Instant.from(ta);
+                    if(max_date == null){
+                        max_date = date;
+                    } else if(date.compareTo(max_date) > 0){
+                        max_date = date;
+                    }
+                    // /**/ System.out.println("Max date: " + DateTimeFormatter.ISO_INSTANT.format(max_date));
                 }
-                // /**/ System.out.println("Max date: " + DateTimeFormatter.ISO_INSTANT.format(max_date));
             }
         }
         for(ArrayList<Double> ai: res){
@@ -360,6 +374,23 @@ public class mainLoop {
             result.add(doc);
         }
 
+        return result;
+    }
+
+    private static ArrayList<ArrayList<Double>> postprocessing(ArrayList<ArrayList<Double>> res) {
+        ArrayList<ArrayList<Double> > result = new ArrayList<>();
+        for(ArrayList<Double> a: res){
+            double suma = 0.0;
+            int cont = 0;
+            ArrayList<Double> aux = new ArrayList<>();
+            for(Double d: a){
+                if(d < 0.5) aux.add(0.0);
+                else        { aux.add(1.0); suma++; }
+                cont++;
+            }
+            aux.add(suma/cont);
+            result.add(aux);
+        }
         return result;
     }
 
