@@ -1,276 +1,124 @@
-package es.uma.algorithms;
+package es.uma.main;
+import com.mongodb.*;
+import com.mongodb.client.FindIterable;
+import com.mongodb.client.MongoDatabase;
+import org.bson.Document;
 
-import org.deeplearning4j.nn.api.OptimizationAlgorithm;
-import org.deeplearning4j.nn.conf.MultiLayerConfiguration;
-import org.deeplearning4j.nn.conf.NeuralNetConfiguration;
-import org.deeplearning4j.nn.conf.layers.LSTM;
-import org.deeplearning4j.nn.conf.layers.RnnOutputLayer;
-import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
-import org.deeplearning4j.nn.weights.WeightInit;
-import org.deeplearning4j.optimize.listeners.ScoreIterationListener;
-import org.nd4j.linalg.activations.Activation;
-import org.nd4j.linalg.api.ndarray.INDArray;
-import org.nd4j.linalg.dataset.DataSet;
-import org.nd4j.linalg.dataset.api.iterator.DataSetIterator;
-import org.nd4j.linalg.factory.Nd4j;
-import org.nd4j.linalg.indexing.NDArrayIndex;
-import org.nd4j.linalg.learning.config.Adam;
-import org.nd4j.linalg.lossfunctions.LossFunctions;
-
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Map;
 import java.util.Set;
 
-public class RecurrentNeuralNetwork {
+import static com.mongodb.client.model.Filters.*;
 
-    private static int default_seed = 12345;
-    private static double default_learningrate = 0.005;
-    private static int default_nb_epoch = 100;
+public class databaseAccess {
+    private MongoDatabase mongoDB;
 
-    private int [] layers;
-    private int seed;
-    private double learningrate;
-    private MultiLayerNetwork net;
-
-    private double MSE;
-    private double MAE;
-    private double MaxE;
-    private double CL;
-
-    public RecurrentNeuralNetwork(int [] layers, int seed, double learningrate){
-        this.setLayers(layers);
-        this.seed = seed;
-        this.learningrate = learningrate;
-        this.net = null;
-        this.MSE = -1.;
-        this.MAE = -1.;
-        this.MaxE = -1.;
-        this.CL = -1.;
-    }
-
-    public RecurrentNeuralNetwork(int [] layers, double learningrate){
-        this(layers, default_seed, learningrate);
-    }
-
-    public RecurrentNeuralNetwork(int [] layers, int seed){
-        this(layers, seed, default_learningrate);
-    }
-
-    public RecurrentNeuralNetwork(int [] layers){
-        this(layers, default_seed, default_learningrate);
-    }
-
-    public void build(int report_step){
-        // some common parameters
-        NeuralNetConfiguration.Builder builder = new NeuralNetConfiguration.Builder();
-        builder.seed(seed);
-        builder.optimizationAlgo(OptimizationAlgorithm.STOCHASTIC_GRADIENT_DESCENT);
-        builder.weightInit(WeightInit.XAVIER);
-        builder.updater(new Adam(learningrate));
-
-        NeuralNetConfiguration.ListBuilder listBuilder = builder.list();
-        for(int i = 0; i < getLayers().length-2; i++) {
-            LSTM.Builder hiddenLayerBuilder = new LSTM.Builder();
-            hiddenLayerBuilder.nIn(getLayers()[i]);
-            hiddenLayerBuilder.nOut(getLayers()[i + 1]);
-            // adopted activation function from LSTMCharModellingExample
-            // seems to work well with RNNs
-            hiddenLayerBuilder.activation(Activation.TANH);
-            listBuilder.layer(i, hiddenLayerBuilder.build());
+    public databaseAccess(String host,  Integer port, String db_name, String user, String passwd){
+        String encoded_pwd = "";
+        try {
+            encoded_pwd = URLEncoder.encode(passwd, "UTF-8");
+        } catch (UnsupportedEncodingException ex) {
+            System.err.println("Cannot connect to DB:" + ex);
         }
-        // we need to use RnnOutputLayer for our RNN
-        //RnnOutputLayer.Builder outputLayerBuilder = new RnnOutputLayer.Builder(LossFunctions.LossFunction.MCXENT);
-        RnnOutputLayer.Builder outputLayerBuilder = new RnnOutputLayer.Builder(LossFunctions.LossFunction.MSE);
-        // softmax normalizes the output neurons, the sum of all outputs is 1
-        // this is required for our sampleFromDistribution-function
-        //outputLayerBuilder.activation(Activation.SOFTMAX);
-        outputLayerBuilder.activation(Activation.IDENTITY);
-        outputLayerBuilder.nIn(getLayers()[getLayers().length-2]);
-        outputLayerBuilder.nOut(getLayers()[getLayers().length-1]);
-        listBuilder.layer(getLayers().length-2, outputLayerBuilder.build());
 
-        // create network
-        MultiLayerConfiguration conf = listBuilder.build();
-        net = new MultiLayerNetwork(conf);
-        net.init();
-        if(report_step > 0)
-            net.setListeners(new ScoreIterationListener(report_step));
+        // Mongodb connection string.
+        String client_url = "mongodb://" + user + ":" + encoded_pwd + "@" + host + ":" + port + "/" + db_name;
+
+        connect(client_url, db_name);
     }
 
-    public void build(){
-        build(-1);
+    public databaseAccess(String host,  Integer port, String db_name){
+
+        // Mongodb connection string.
+        String client_url = "mongodb://" + host + ":" + port + "/" + db_name;
+        connect(client_url, db_name);
     }
 
-    public int getNumberOfParameters(){
+    public databaseAccess(String db_name){
+        this("127.0.0.1", 27017, db_name);
+    }
 
-        Map<String, INDArray> paramTable = net.paramTable(true);
-        Set<String> keys = paramTable.keySet();
-        int params = 0;
+    private void connect(String client_uri, String db_name){
+        MongoClientURI uri = new MongoClientURI(client_uri);
 
-        for (String key : keys) {
-            INDArray values = paramTable.get(key);
-            long [] v = values.shape();
-            params += (v[0]*v[1]);
+        // Connecting to the mongodb server using the given client uri.
+        MongoClient mongo_client = new MongoClient(uri);
+
+        // Fetching the database from the mongodb.
+        setMongoDB(mongo_client.getDatabase(db_name));
+
+    }
+
+    public MongoDatabase getMongoDB(){
+        return mongoDB;
+    }
+
+    public void setMongoDB(MongoDatabase mongoDB){
+        this.mongoDB = mongoDB;
+    }
+
+    public ArrayList<Document> getData(String collection, String from, String to){
+        FindIterable<Document> iterable = null;
+        //if(from == null || to == null) {
+            iterable = getMongoDB().getCollection(collection).find().sort(new BasicDBObject("TimeInstant", 1));
+        /* Date are not correct format
+            } else {
+            iterable = getMongoDB().getCollection(collection)
+                                    .find(and(gte("TimeInstant",from), lte("TimeInstant",to)))
+                                    .sort(new BasicDBObject("TimeInstant", 1));
+        }*/
+        // Iterate the results and apply a block to each resulting document.
+        // Iteramos los resultados y aplicacimos un bloque para cada documento.
+        ArrayList<Document> ld = new ArrayList<>();
+        iterable.forEach((Block<Document>) document -> ld.add(document));
+        return  ld;
+    }
+
+    public void setData(String collection, ArrayList<Document> data){
+        try {
+            // /**/ System.out.println("test: building collection");
+            getMongoDB().createCollection(collection);
+            // /**/ System.out.println("test: building collection Ok");
+        }catch (MongoCommandException e){
+            // /**/ System.out.println("test building collection: already done");
         }
-        return params;
+        // /**/ System.out.println("test: writing data");
+        getMongoDB().getCollection(collection).insertMany(data);
+        // /**/ System.out.println("test: writing data done");
     }
 
-    public void setParameters(double [] weights){
-
-        Map<String, INDArray> paramTable = net.paramTable(true);
-        Set<String> keys = paramTable.keySet();
-        int init = 0;
-        int end = 0;
-
-        for (String key : keys) {
-            INDArray values = paramTable.get(key);
-            long [] v = values.shape();
-            end += (v[0]*v[1]);
-            double [] w = Arrays.copyOfRange(weights, init, end);
-            net.setParam(key, Nd4j.create(w, values.shape()));
-            init = end;
+    public Document getModel(String collection, String modelID){
+        BasicDBObject whereQuery = new BasicDBObject();
+        whereQuery.put("modelID", modelID);
+        FindIterable<Document> iterable = null;
+        iterable = getMongoDB().getCollection(collection).find(whereQuery);
+        if(iterable.first() != null){
+            return iterable.first();
         }
+        return null;
     }
 
-    public double []  getParameters(){
-        double [] weights = new double[getNumberOfParameters()];
-        Map<String, INDArray> paramTable = net.paramTable(true);
-        Set<String> keys = paramTable.keySet();
-        int init = 0;
-
-        for (String key : keys) {
-            INDArray values = Nd4j.toFlattened(paramTable.get(key));
-            for(double d: values.toDoubleVector()){
-                weights[init] = d;
-                init++;
-            }
+    public void setModel(String collection, Document model){
+        // /**/ System.out.println("test Creando BD: Hay colección? " + collection);
+        try {
+            getMongoDB().createCollection(collection);
+           // /**/ System.out.println("test No");
+        }catch (MongoCommandException e){
+            // /**/ System.out.println("test Sí");
         }
-        return weights;
-    }
 
-
-    public void writeParameters(){
-        Map<String, INDArray> paramTable = net.paramTable(true);
-        Set<String> keys = paramTable.keySet();
-
-        for (String key : keys) {
-            INDArray values = paramTable.get(key);
-            System.out.print(key + " ");//print keys
-            System.out.println(Arrays.toString(values.shape()));//print shape of INDArray
-            System.out.println(values);
+        BasicDBObject whereQuery = new BasicDBObject();
+        whereQuery.put("modelID", model.get("modelID"));
+        FindIterable<Document> iterable = null;
+        iterable = getMongoDB().getCollection(collection).find(whereQuery);
+        // /**/ System.out.println("test: Existe el modelo?");
+        if(iterable.first() == null){
+            // /**/ System.out.println("test: No, se crea");
+            getMongoDB().getCollection(collection).insertOne(model);
+        } else {
+            // /**/ System.out.println("test: Si, se actualiza");
+            getMongoDB().getCollection(collection).replaceOne(eq("modelID", model.get("modelID")), model);
         }
-    }
-
-    public void train(DataSetIterator ds, int nb_epoch){
-        net.fit(ds, nb_epoch);
-        this.MSE = -1.;
-        this.MAE = -1.;
-        this.MaxE = -1.;
-        this.CL = -1.;
-    }
-
-    public void train(DataSetIterator ds){
-        train(ds, default_nb_epoch);
-    }
-
-    public void test(DataSetIterator ds){
-        test(ds, true);
-    }
-
-    public void test(DataSetIterator ds, Boolean round){
-        MSE = 0.;
-        MAE = 0.;
-        MaxE = 0.;
-        double MaxC = 0.;
-        int count = 0;
-
-        while (ds.hasNext()) {
-            DataSet batch = ds.next(1);
-            INDArray output = net.output(batch.getFeatures());
-            for(int j = 0; j < getLayers()[getLayers().length-1]; j++) {
-                if(round) {
-                    long pre = Math.round(
-                            (output.get(NDArrayIndex.point(0), NDArrayIndex.all(), NDArrayIndex.point(output.size(2) - 1))).getDouble(0)
-                    );
-                    long cor = Math.round(
-                            (batch.getLabels().get(NDArrayIndex.point(0), NDArrayIndex.all(), NDArrayIndex.point(batch.getLabels().size(2) - 1))).getDouble(0)
-                    );
-                    //System.out.println(pre + " vs " + cor + " -> " + (cor-pre));
-                    MSE += Math.pow((cor - pre), 2);
-                    MAE += Math.abs((cor - pre));
-                    if (Math.abs((cor - pre)) > MaxE) MaxE = 100 - Math.abs((cor - pre));
-                    double corD = (batch.getLabels().get(NDArrayIndex.point(0), NDArrayIndex.all(), NDArrayIndex.point(batch.getLabels().size(2) - 1))).getDouble(0);
-                    if(cor > MaxC) MaxC = corD;
-                } else {
-                    Double pre = (output.get(NDArrayIndex.point(0), NDArrayIndex.all(), NDArrayIndex.point(output.size(2) - 1))).getDouble(0);
-                    Double cor = (batch.getLabels().get(NDArrayIndex.point(0), NDArrayIndex.all(), NDArrayIndex.point(batch.getLabels().size(2) - 1))).getDouble(0);
-                    //System.out.println(pre + " vs " + cor + " -> " + (cor-pre));
-                    MSE += Math.pow((cor - pre), 2);
-                    MAE += Math.abs((cor - pre));
-                    if(cor > MaxC) MaxC = cor;
-                    if (Math.abs((cor - pre)) > MaxE) MaxE = 100 - Math.abs((cor - pre));
-                }
-                count++;
-            }
-        }
-        ds.reset();
-        //if(count == 0) System.out.println("It doesn't be 0!!!");
-        MSE = MSE/count;
-        MAE = MAE/count;
-        CL = (MaxC - MSE)/MaxC;
-        CL = Math.max(CL, 0.6);
-
-    }
-
-    public ArrayList<ArrayList<Double>> predict(DataSetIterator ds, int number){
-        INDArray output = null;
-        while (ds.hasNext()) {
-            DataSet batch = ds.next(1);
-            output = net.output(batch.getFeatures());
-        }
-        ArrayList<ArrayList<Double>> prediction = new ArrayList<>();
-        for (int i = 0; i < number; i++){
-            ArrayList<Double> list = new ArrayList<>();
-            output = net.rnnTimeStep(output);
-            for(int j = 0; j < getLayers()[getLayers().length-1]; j++){
-                //long pre = Math.round(
-                double pre = (output.get(NDArrayIndex.point(0), NDArrayIndex.all(), NDArrayIndex.point(output.size(2) - 1))).getDouble(j);
-                //);
-                if(pre < 0) pre = 0;
-                list.add(pre);
-            }
-            prediction.add(list);
-        }
-        ds.reset();
-        return prediction;
-    }
-
-    public double getMSE() {
-        return MSE;
-    }
-
-    public double getMAE() {
-        return MAE;
-    }
-
-    public double getMaxE() {
-        return MaxE;
-    }
-
-    public int[] getLayers() {
-        return layers;
-    }
-
-    public void setLayers(int[] layers) {
-        this.layers = layers;
-    }
-
-    public double getCL() {
-        return CL;
-    }
-
-    public void setCL(double CL) {
-        this.CL = CL;
     }
 }
