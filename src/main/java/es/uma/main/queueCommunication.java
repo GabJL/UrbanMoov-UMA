@@ -64,7 +64,7 @@ public class queueCommunication {
             try {
                 Thread.sleep(1000);
                 response = getRecv_channel().basicGet(TOPIC, false);
-            } catch (IOException e) {
+            } catch (IOException | InterruptedException e) {
                 e.printStackTrace();
             }
             if (response != null){
