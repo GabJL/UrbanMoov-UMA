@@ -26,12 +26,12 @@ public class RecurrentNeuralNetwork {
 
     private static int default_seed = 12345;
     private static double default_learningrate = 0.005;
-    private static int default_nb_epoch = 100;
+    private static int default_nb_epoch = 1000;
 
     private int [] layers;
     private int seed;
     private double learningrate;
-    private MultiLayerNetwork net;
+    public MultiLayerNetwork net;
 
     private double MSE;
     private double MAE;
