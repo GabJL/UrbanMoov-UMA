@@ -84,7 +84,7 @@ public class mainLoop {
             csv.writeFile();
             // Call algorithm
             //ArrayList<ArrayList<Integer>> resAlg =
-            ml = executeAlgorithm(requestEvent, "temporal", "test.csv", data.size());
+            ml = executeAlgorithm(requestEvent, "temporal", "test.csv", csv.getTitles().size()-1);
             ml.setRequestEvent(requestEvent);
             ml.train();
         }else {
