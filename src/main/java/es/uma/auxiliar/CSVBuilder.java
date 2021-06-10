@@ -78,8 +78,7 @@ public class CSVBuilder {
                         continue;
                     }
                     if (counter_row == 0) {
-                        name = name + "-" + a;
-                        getTitles().add(name);
+                        getTitles().add(name + "-" + a);
                     }
                     if (counter_row % (skip + 1) == 0) {
                         if (counter_doc == 0 && counter_attr == 0) {
