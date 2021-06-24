@@ -31,7 +31,7 @@ public class TrainedModel {
 
         setNet(new RecurrentNeuralNetwork(getAlgorithmConfiguration().getLayers()));
 
-        getNet().build(40);
+        getNet().build(4000);
     }
 
     public ArrayList<ArrayList<Double>> getPrediction(){
@@ -47,7 +47,7 @@ public class TrainedModel {
             case M60: number = number / 4; break;
             case M30: number = number / 2;
         }
-        /**/ System.out.println("number " + number);
+        /**/ // System.out.println("number " + number);
 
         getNet().setParameters(getAlgorithmConfiguration().getWeights());
         try {
