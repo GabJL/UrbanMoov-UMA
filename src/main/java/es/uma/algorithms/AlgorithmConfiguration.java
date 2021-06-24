@@ -43,7 +43,7 @@ public class AlgorithmConfiguration {
         setDatafile("test.csv");
         setDatapath("temporal");
         setLayers(new int[]{8, 16, 8, 1});
-        setPeriod(4);
+        setPeriod(16);
         setTraining(0.75);
         setMaxIterations(10);
         setPrediction(Prediction.SHORT);
