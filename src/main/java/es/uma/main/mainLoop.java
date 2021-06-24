@@ -282,11 +282,11 @@ public class mainLoop {
                 algorithm = new PSO_Mono_Par(ac);
             }
         }
-
+        algorithm.getProblem();
         //algorithm.run();
 
         /**/ // Aditional model
-        TrainedModel ml = new TrainedModel(ac), ml1 = new TrainedModel(ac); // ml2 = algorithm.getModel(),
+        TrainedModel ml = new TrainedModel(ac),  ml1 = new TrainedModel(ac); // ml2 = algorithm.getModel(),
         try {
             ml.setNet(newModel(ac.getLayers()));
             ml.getAlgorithmConfiguration().setWeights(ml.getNet().getParameters());
@@ -314,7 +314,7 @@ public class mainLoop {
     private static RecurrentNeuralNetwork newModel(int [] layers) throws IOException, InterruptedException {
         SimpleDataSet ds = new SimpleDataSet("temporal/", "test.csv", true);
 
-        ds.generateFiles(16);
+        ds.generateFiles(8);
         ds.setTrainingSize(0.75);
 
         DataSetIterator trainingData = ds.getTrainingData();
@@ -322,7 +322,7 @@ public class mainLoop {
 
         RecurrentNeuralNetwork net = new RecurrentNeuralNetwork(layers);
 
-        net.build(4000);
+        net.build(40);
         net.train(trainingData);
         return net;
     }
