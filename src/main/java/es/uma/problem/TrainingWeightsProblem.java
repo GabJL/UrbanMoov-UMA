@@ -35,7 +35,7 @@ abstract public class TrainingWeightsProblem extends AbstractDoubleProblem {
 
         setNet(new RecurrentNeuralNetwork(getAlgorithmConfiguration().getLayers()));
 
-        getNet().build(40);
+        getNet().build(4000);
     }
 
     /** Evaluate() method */
