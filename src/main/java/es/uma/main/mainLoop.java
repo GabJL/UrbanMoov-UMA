@@ -3,10 +3,16 @@ package es.uma.main;
 import com.google.gson.Gson;
 import es.uma.algorithms.*;
 import es.uma.auxiliar.CSVBuilder;
+import es.uma.data.SimpleDataSet;
 import es.uma.models.Error;
 import es.uma.models.*;
 import org.bson.Document;
+import org.nd4j.linalg.api.ndarray.INDArray;
+import org.nd4j.linalg.dataset.DataSet;
+import org.nd4j.linalg.dataset.api.iterator.DataSetIterator;
+import org.nd4j.linalg.indexing.NDArrayIndex;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAccessor;
@@ -86,7 +92,6 @@ public class mainLoop {
             //ArrayList<ArrayList<Integer>> resAlg =
             ml = executeAlgorithm(requestEvent, "temporal", "test.csv", csv.getTitles().size()-1);
             ml.setRequestEvent(requestEvent);
-            ml.train();
         }else {
             ml = loadModel(requestEvent, db);
             if(ml == null){
@@ -114,6 +119,17 @@ public class mainLoop {
                 ArrayList<Document> result;
                 if(nuevos) ml.train();
                 ArrayList< ArrayList <Double>> resAlg = ml.getPrediction();
+                /**/ // DESDE AQUI
+                /*
+                System.out.println("Prediciendo");
+                for(ArrayList<Double> a: resAlg){
+                    for(Double d: a)
+                        System.out.print(d + " ");
+                    System.out.println();
+                }
+                System.out.println("Fin prediciendo");
+                */
+                /**/ // HASTA AQUÏ
 
                 // Generate Results
                 result = analyzeResultsAlgorithm(resAlg, data, requestEvent, csv.getTitles());
@@ -150,9 +166,12 @@ public class mainLoop {
     }
 
     private static TrainedModel loadModel(PredictionRequestEvent requestEvent, databaseAccess db) {
+        // /**/ System.out.println("Loading model 1");
         if(requestEvent.model.modelID == null) return null;
+        // /**/ System.out.println("Loading model 2");
         Document doc = db.getModel(requestEvent.modelsource.collection, requestEvent.model.modelID);
         if(doc == null) return null;
+        // /**/ System.out.println("Loading model 3");
         AlgorithmModel am = null;
         try{
             Gson g = new Gson();
@@ -160,10 +179,12 @@ public class mainLoop {
         } catch(Exception e){
             return null;
         }
+        // /**/ System.out.println("Loading model 4");
         PredictionRequestEvent re_original = am.request;
         AlgorithmConfiguration ac = generateConfiguration(requestEvent, "temporal", "test.csv",0);
         ac.setWeights(am.weights);
         ac.setLayers(am.layers);
+        // /**/ System.out.println("Loading model 5");
         if(requestEvent.operation.equals("IMPROVE")){
             // Connect to database with event and get data
             ArrayList<ArrayList<Document>> data = connectDB(requestEvent);
@@ -176,6 +197,7 @@ public class mainLoop {
                     requestEvent.model.period, requestEvent.model.from, requestEvent.model.to);
             csv.writeFile();
         } else {
+            // /**/ System.out.println("Loading model 6");
             // Connect to database with event and get data
             ArrayList<ArrayList<Document>> data = connectDB(requestEvent);
             if(data == null || data.isEmpty()) {
@@ -185,15 +207,19 @@ public class mainLoop {
                     return null;
                 }
             }
+            // /**/ System.out.println("Loading model 7");
             // generate CSV
             CSVBuilder csv = new CSVBuilder("temporal", "test.csv", data, re_original.model.attributes,
                     requestEvent.model.period, requestEvent.model.from, requestEvent.model.to);
             csv.writeFile();
-        }
+            /**/ // System.out.println("Loading model 8");
 
+        }
+        // /**/ System.out.println("Loading model 9");
         TrainedModel model = new TrainedModel(ac);
         model.setModelID(requestEvent.model.modelID);
         model.setRequestEvent(re_original);
+        // /**/ System.out.println("Loading model 10");
         return model;
     }
 
@@ -208,6 +234,7 @@ public class mainLoop {
     private static AlgorithmConfiguration generateConfiguration(PredictionRequestEvent requestEvent, String dp,
                                                                 String fn, Integer inputs){
 
+        // /**/ System.out.println("Numero de inputs: " + inputs);
         AlgorithmConfiguration ac = new AlgorithmConfiguration();
         ac.setDatapath(dp);
         ac.setDatafile(fn);
@@ -224,7 +251,7 @@ public class mainLoop {
 
         AbstractAlgorithm algorithm = null;
 
-        if(requestEvent.model.type == null){
+        if (requestEvent.model.type == null) {
             algorithm = new PSO_Multi_Par(ac);
         } else {
             if (requestEvent.model.type.equals("PSOMOPAR")) {
@@ -258,8 +285,46 @@ public class mainLoop {
 
         algorithm.run();
 
-        return algorithm.getModel();
+        /**/ // Aditional model
+        TrainedModel ml = new TrainedModel(ac), ml1 = algorithm.getModel(), ml2 = new TrainedModel(ac);
+        try {
+            ml.setNet(newModel(ac.getLayers()));
+            ml.getAlgorithmConfiguration().setWeights(ml.getNet().getParameters());
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        ml2.setRequestEvent(requestEvent);
+        ml2.train();
+        if (ml.getConfidenceLevel() >= ml1.getConfidenceLevel() && ml.getConfidenceLevel() >= ml2.getConfidenceLevel()) {
+            System.out.println("New model selected");
+            return ml;
+        } else if (ml2.getConfidenceLevel() >= ml1.getConfidenceLevel()){
+            System.out.println("Old model selected");
+            return ml2;
+        }
+        System.out.println("Alg model selected");
+        return ml1;
+
         //return algorithm.getPrediction();
+    }
+
+    private static RecurrentNeuralNetwork newModel(int [] layers) throws IOException, InterruptedException {
+        SimpleDataSet ds = new SimpleDataSet("temporal/", "test.csv", true);
+
+        ds.generateFiles(16);
+        ds.setTrainingSize(0.75);
+
+        DataSetIterator trainingData = ds.getTrainingData();
+        DataSetIterator testData = ds.getTestData();
+
+        RecurrentNeuralNetwork net = new RecurrentNeuralNetwork(layers);
+
+        net.build(4000);
+        net.train(trainingData);
+        return net;
     }
 
     private static String createExecutedEvent(PredictionRequestEvent r, boolean ack, Error e, String modelID,
@@ -333,7 +398,7 @@ public class mainLoop {
                 time = 24 * 60 * 60;
                 break;
         }
-        /**/ System.out.println("periodo: " + requestEvent.model.period + " time: " + time + " values: " + data.size());
+        /**/ // System.out.println("periodo: " + requestEvent.model.period + " time: " + time + " values: " + data.size());
         if(requestEvent.model.usecase != null && requestEvent.model.usecase.equals("PARKING")) {
             res = postprocessing(res);
             titles.add("global");
