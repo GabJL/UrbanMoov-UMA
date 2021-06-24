@@ -60,7 +60,7 @@ public class CSVBuilder {
             for (Document d : ad) {
                 Document aux = (Document) d.get("TimeInstant");
                 String s = convertDate(aux.get("value", String.class));
-                // /**/ System.out.println("test Fecha:" + s);
+                // /**/ System.out.print("test Fecha:" + s);
                 TemporalAccessor ta = DateTimeFormatter.ISO_INSTANT.parse(s);
                 date = Instant.from(ta);
                 if(from != null && date.compareTo(from) < 0) continue;
