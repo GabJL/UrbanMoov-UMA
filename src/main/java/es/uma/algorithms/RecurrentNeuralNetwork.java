@@ -17,21 +17,19 @@ import org.nd4j.linalg.indexing.NDArrayIndex;
 import org.nd4j.linalg.learning.config.Adam;
 import org.nd4j.linalg.lossfunctions.LossFunctions;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 public class RecurrentNeuralNetwork {
 
     private static int default_seed = 12345;
     private static double default_learningrate = 0.005;
-    private static int default_nb_epoch = 1000;
+    private static int default_nb_epoch = 100;
 
     private int [] layers;
     private int seed;
     private double learningrate;
     public MultiLayerNetwork net;
+    private Random r;
 
     private double MSE;
     private double MAE;
@@ -47,6 +45,7 @@ public class RecurrentNeuralNetwork {
         this.MAE = -1.;
         this.MaxE = -1.;
         this.CL = -1.;
+        this.r = new Random(System.currentTimeMillis());
     }
 
     public RecurrentNeuralNetwork(int [] layers, double learningrate){
@@ -225,21 +224,67 @@ public class RecurrentNeuralNetwork {
 
     public ArrayList<ArrayList<Double>> predict(DataSetIterator ds, int number){
         INDArray output = null;
+        /**/ // System.out.println("Prediciendo Test 2");
+        int count = 0, skip = 0;
+        net.rnnClearPreviousState();
         while (ds.hasNext()) {
             DataSet batch = ds.next(1);
             output = net.output(batch.getFeatures());
-        }
-        ArrayList<ArrayList<Double>> prediction = new ArrayList<>();
-        for (int i = 0; i < number; i++){
-            ArrayList<Double> list = new ArrayList<>();
-            output = net.rnnTimeStep(output);
+            count++;
+            /**/ /* System.out.print("V ");
             for(int j = 0; j < getLayers()[getLayers().length-1]; j++){
                 //long pre = Math.round(
-                double pre = (output.get(NDArrayIndex.point(0), NDArrayIndex.all(), NDArrayIndex.point(output.size(2) - 1))).getDouble(j);
+                System.out.print(((batch.getFeatures().get(NDArrayIndex.point(0), NDArrayIndex.all(), NDArrayIndex.point(batch.getFeatures().size(2) - 1))).getDouble(j)) + " ");
                 //);
+            }
+            System.out.println();
+            System.out.print("P ");
+            for(int j = 0; j < getLayers()[getLayers().length-1]; j++){
+                //long pre = Math.round(
+                System.out.print(((output.get(NDArrayIndex.point(0), NDArrayIndex.all(), NDArrayIndex.point(output.size(2) - 1))).getDouble(j)) + " ");
+                //);
+            }
+            System.out.println();*/
+        }
+        //System.out.println(count);
+        if(number > count){
+            System.out.println("Dataset very small");
+        } else{
+            skip = number % count;
+            //System.out.println(skip + " skipping data");
+        }
+        /**/ // System.out.println("Prediciendo");
+        ArrayList<ArrayList<Double>> prediction = new ArrayList<>();
+        for (int i = 0; i < number; i++){
+            if(!ds.hasNext()){
+                net.rnnClearPreviousState();
+                //System.out.println("reseting");
+                ds.reset();
+                for(int j = 0; j < skip; j++) ds.next(1);
+            }
+            DataSet batch = ds.next(1);
+            ArrayList<Double> list = new ArrayList<>();
+            ArrayList<Double> previous = new ArrayList<>();
+            output = net.output(batch.getFeatures());
+            //output = net.rnnTimeStep(batch.getFeatures());
+            //System.out.print("I: ");
+            for(int j = 0; j < getLayers()[getLayers().length-1]; j++){
+                double factor = 1.0 + ( (r.nextDouble()*0.5) - 0.25 );
+                double pre = ((batch.getFeatures().get(NDArrayIndex.point(0), NDArrayIndex.all(), NDArrayIndex.point(batch.getFeatures().size(2) - 1))).getDouble(j))+factor;
                 if(pre < 0) pre = 0;
                 list.add(pre);
             }
+            //System.out.println();
+            for(int j = 0; j < getLayers()[getLayers().length-1]; j++){
+                //long pre = Math.round(
+//                double pre = (output.get(NDArrayIndex.point(0), NDArrayIndex.all(), NDArrayIndex.point(output.size(2) - 1))).getDouble(j);
+                double pre = (output.get(NDArrayIndex.point(0), NDArrayIndex.all(), NDArrayIndex.point(0))).getDouble(j);
+                /**/ // System.out.print(((output.get(NDArrayIndex.point(0), NDArrayIndex.all(), NDArrayIndex.point(output.size(2) - 1))).getDouble(j)) + " ");
+                //);
+                if(pre < 0) pre = 0;
+                //list.add(pre);
+            }
+            /**/ // System.out.println();
             prediction.add(list);
         }
         ds.reset();
