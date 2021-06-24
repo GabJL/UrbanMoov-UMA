@@ -117,7 +117,7 @@ public class mainLoop {
                 csv.writeFile();
                 // Calculate result
                 ArrayList<Document> result;
-                if(nuevos) ml.train();
+                //if(nuevos) ml.train();
                 ArrayList< ArrayList <Double>> resAlg = ml.getPrediction();
                 /**/ // DESDE AQUI
                 /*
@@ -283,10 +283,10 @@ public class mainLoop {
             }
         }
 
-        algorithm.run();
+        //algorithm.run();
 
         /**/ // Aditional model
-        TrainedModel ml = new TrainedModel(ac), ml1 = algorithm.getModel(), ml2 = new TrainedModel(ac);
+        TrainedModel ml = new TrainedModel(ac), ml1 = new TrainedModel(ac); // ml2 = algorithm.getModel(),
         try {
             ml.setNet(newModel(ac.getLayers()));
             ml.getAlgorithmConfiguration().setWeights(ml.getNet().getParameters());
@@ -296,16 +296,16 @@ public class mainLoop {
             e.printStackTrace();
         }
 
-        ml2.setRequestEvent(requestEvent);
-        ml2.train();
-        if (ml.getConfidenceLevel() >= ml1.getConfidenceLevel() && ml.getConfidenceLevel() >= ml2.getConfidenceLevel()) {
-            System.out.println("New model selected");
+        ml1.setRequestEvent(requestEvent);
+        ml1.train();
+        if (ml.getConfidenceLevel() >= ml1.getConfidenceLevel()) {// && ml.getConfidenceLevel() >= ml2.getConfidenceLevel()) {
+            //System.out.println("New model selected");
             return ml;
-        } else if (ml2.getConfidenceLevel() >= ml1.getConfidenceLevel()){
-            System.out.println("Old model selected");
-            return ml2;
-        }
-        System.out.println("Alg model selected");
+        } //else if (ml2.getConfidenceLevel() >= ml1.getConfidenceLevel()){
+            // System.out.println("Old model selected");
+            // return ml1;
+        //}
+//        System.out.println("Alg model selected");
         return ml1;
 
         //return algorithm.getPrediction();
