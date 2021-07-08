@@ -1,12 +1,14 @@
 package es.uma.algorithms;
 
 public class AlgorithmConfiguration {
+    // Prediction Range
     public enum Prediction {
         SHORT,
         MEDIUM,
         LARGE
     };
 
+    // Prediction period
     public enum Period {
         M15,
         M30,
