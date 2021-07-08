@@ -221,15 +221,70 @@ public class RecurrentNeuralNetwork {
         CL = Math.max(CL, 0.6);
 
     }
-
     public ArrayList<ArrayList<Double>> predict(DataSetIterator ds, int number){
+        return predict(ds, number, 0);
+    }
+
+    private int calculateSkip(DataSetIterator ds, int number, int count){
+        ArrayList<ArrayList<Double>> a = new ArrayList<>();
+        INDArray output = null;
+        count = 0;
+        ds.reset();
+        while (ds.hasNext()) {
+            ArrayList<Double> d = new ArrayList<>();
+            DataSet batch = ds.next(1);
+            output = net.output(batch.getFeatures());
+            for(int j = 0; j < getLayers()[getLayers().length-1]; j++){
+                //long pre = Math.round(
+                d.add(((batch.getFeatures().get(NDArrayIndex.point(0), NDArrayIndex.all(), NDArrayIndex.point(batch.getFeatures().size(2) - 1))).getDouble(j)));
+                //);
+            }
+            a.add(d);
+            count++;
+        }
+        /*for(ArrayList<Double> d: a) {
+            for (Double v : d) {
+                System.out.print(v + " ");
+            }
+            System.out.println();
+        }*/
+        int number_per = (int)(number*0.2);
+        int pos = 1;
+        int pos_final = pos;
+        double max_error = Double.POSITIVE_INFINITY;
+        int initial = count-(number*pos + number_per + 1);
+        // System.out.println("pos: " + pos + " num:" + number + " np: " + number_per + " ini: "+ initial + " co: " + count + " si: " + a.size());
+        while(initial >= 0){
+            //System.out.println("\tIni: " + initial);
+             double error = 0;
+             for(int i = 0; i < number_per; i++){
+                // System.out.println("\t\tpos1: "+ (initial+i) + " pos2: "+ (count-number_per+i));
+                for(int j = 0; j < a.get(initial).size(); j++){
+                    double val1 = a.get(initial+i).get(j);
+                    double val2 = a.get(count-number_per+i).get(j);
+                    // System.out.println("\t\t\t" + val1 + " - " + val2);
+                    error += Math.abs(val1-val2);
+                }
+             }
+             //System.out.println("\terr: "+ error);
+             if(error < max_error){
+                 max_error = error;
+                 pos_final = pos;
+             }
+             pos++;
+             initial = count-(number*pos + number_per + 1);
+        }
+        return count - number*pos_final;
+    }
+
+    public ArrayList<ArrayList<Double>> predict(DataSetIterator ds, int number, int fl){
         INDArray output = null;
         /**/ // System.out.println("Prediciendo Test 2");
         int count = 0, skip = 0;
         net.rnnClearPreviousState();
         while (ds.hasNext()) {
             DataSet batch = ds.next(1);
-            output = net.output(batch.getFeatures());
+            // output = net.output(batch.getFeatures());
             count++;
             /**/ /* System.out.print("V ");
             for(int j = 0; j < getLayers()[getLayers().length-1]; j++){
@@ -247,10 +302,16 @@ public class RecurrentNeuralNetwork {
             System.out.println();*/
         }
         //System.out.println(count);
-        if(number > count){
+        if(fl != 0 && count >= fl)
+        {
+            /**/ System.out.println("co: " + count + " fl: " + fl + " sk: " + skip + " nb: " + number);
+            skip = count - fl;
+        }
+        else if(number > count){
             System.out.println("Dataset very small");
         } else{
-            skip = number % count;
+            skip = calculateSkip(ds, number, count);//number % count;
+            /**/  System.out.println("co: " + count + " fl: " + fl + " sk: " + skip + " nb: " + number);
             //System.out.println(skip + " skipping data");
         }
         /**/ // System.out.println("Prediciendo");
@@ -258,7 +319,7 @@ public class RecurrentNeuralNetwork {
         for (int i = 0; i < number; i++){
             if(!ds.hasNext()){
                 net.rnnClearPreviousState();
-                //System.out.println("reseting");
+                /**/System.out.println("reseting");
                 ds.reset();
                 for(int j = 0; j < skip; j++) ds.next(1);
             }
@@ -269,7 +330,7 @@ public class RecurrentNeuralNetwork {
             //output = net.rnnTimeStep(batch.getFeatures());
             //System.out.print("I: ");
             for(int j = 0; j < getLayers()[getLayers().length-1]; j++){
-                double factor = 1.0 + ( (r.nextDouble()*0.5) - 0.25 );
+                double factor = 1.0 + ( (r.nextDouble()*0.3) - 0.15 );
                 double pre = ((batch.getFeatures().get(NDArrayIndex.point(0), NDArrayIndex.all(), NDArrayIndex.point(batch.getFeatures().size(2) - 1))).getDouble(j))+factor;
                 if(pre < 0) pre = 0;
                 list.add(pre);
