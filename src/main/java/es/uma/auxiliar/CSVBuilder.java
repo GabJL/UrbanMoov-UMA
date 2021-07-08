@@ -16,6 +16,8 @@ public class CSVBuilder {
     private static final Integer TIME = 120;
     private String path;
     private String filename;
+    private boolean fut;
+    private int fut_lines;
 
 
     public static String convertDate(String s){
@@ -34,6 +36,8 @@ public class CSVBuilder {
         getTitles().add("TimeInstant");
         this.path = path;
         this.filename = filename;
+        this.fut = false;
+        this.fut_lines = 0;
 
         int skip = 0;
         if(per == null) per = "15M";
@@ -48,6 +52,7 @@ public class CSVBuilder {
                 skip = 95; // 24*4 - 1;
                 break;
         }
+        skip = 0;
 
         Instant date, from = null, to = null;
         if(sfrom != null) from = Instant.from(DateTimeFormatter.ISO_INSTANT.parse(CSVBuilder.convertDate(sfrom)));
@@ -64,7 +69,7 @@ public class CSVBuilder {
                 TemporalAccessor ta = DateTimeFormatter.ISO_INSTANT.parse(s);
                 date = Instant.from(ta);
                 if(from != null && date.compareTo(from) < 0) continue;
-                if(to != null && date.compareTo(to) > 0) continue;
+                if(to != null && date.compareTo(to) > 0) fut = true;
                 int counter_attr = 0;
                 for (String a : attr) {
                     // /**/ System.out.println("test atributo:" + a);
@@ -85,6 +90,7 @@ public class CSVBuilder {
                             ArrayList<Double> ai = new ArrayList<>();
                             getData().put(date, ai);
                             counter_attr++;
+                            if(fut) fut_lines++;
                         }
                         ArrayList<Double> ai = getData().get((getData().keySet().toArray())[index]);
                         ai.add(val);
@@ -190,5 +196,13 @@ public class CSVBuilder {
 
     public LinkedHashMap<Instant, ArrayList<Double>> getData() {
         return data;
+    }
+
+    public boolean hasFut(){
+        return fut;
+    }
+
+    public int getFut_lines(){
+        return fut_lines;
     }
 }
