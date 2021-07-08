@@ -68,8 +68,6 @@ public class databaseAccess {
                                     .find(and(gte("TimeInstant",from), lte("TimeInstant",to)))
                                     .sort(new BasicDBObject("TimeInstant", 1));
         }*/
-        // Iterate the results and apply a block to each resulting document.
-        // Iteramos los resultados y aplicacimos un bloque para cada documento.
         ArrayList<Document> ld = new ArrayList<>();
         iterable.forEach((Block<Document>) document -> ld.add(document));
         return  ld;
@@ -77,15 +75,10 @@ public class databaseAccess {
 
     public void setData(String collection, ArrayList<Document> data){
         try {
-            // /**/ System.out.println("test: building collection");
             getMongoDB().createCollection(collection);
-            // /**/ System.out.println("test: building collection Ok");
         }catch (MongoCommandException e){
-            // /**/ System.out.println("test building collection: already done");
         }
-        // /**/ System.out.println("test: writing data");
         getMongoDB().getCollection(collection).insertMany(data);
-        // /**/ System.out.println("test: writing data done");
     }
 
     public Document getModel(String collection, String modelID){
@@ -100,24 +93,18 @@ public class databaseAccess {
     }
 
     public void setModel(String collection, Document model){
-        // /**/ System.out.println("test Creando BD: Hay colección? " + collection);
         try {
             getMongoDB().createCollection(collection);
-           // /**/ System.out.println("test No");
         }catch (MongoCommandException e){
-            // /**/ System.out.println("test Sí");
         }
 
         BasicDBObject whereQuery = new BasicDBObject();
         whereQuery.put("modelID", model.get("modelID"));
         FindIterable<Document> iterable = null;
         iterable = getMongoDB().getCollection(collection).find(whereQuery);
-        // /**/ System.out.println("test: Existe el modelo?");
         if(iterable.first() == null){
-            // /**/ System.out.println("test: No, se crea");
             getMongoDB().getCollection(collection).insertOne(model);
         } else {
-            // /**/ System.out.println("test: Si, se actualiza");
             getMongoDB().getCollection(collection).replaceOne(eq("modelID", model.get("modelID")), model);
         }
     }
