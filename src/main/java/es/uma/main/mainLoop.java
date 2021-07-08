@@ -117,8 +117,8 @@ public class mainLoop {
                 csv.writeFile();
                 // Calculate result
                 ArrayList<Document> result;
-                //if(nuevos) ml.train();
-                ArrayList< ArrayList <Double>> resAlg = ml.getPrediction();
+                if(nuevos) ml.train();
+                ArrayList< ArrayList <Double>> resAlg = ml.getPrediction(csv.hasFut(), csv.getFut_lines());
                 /**/ // DESDE AQUI
                 /*
                 System.out.println("Prediciendo");
@@ -424,9 +424,9 @@ public class mainLoop {
                     // /**/ System.out.println("Max date: " + DateTimeFormatter.ISO_INSTANT.format(max_date));
                 }
             }
+            max_date = max_date.plusSeconds(time);
         }
         for(ArrayList<Double> ai: res){
-            max_date = max_date.plusSeconds(time);
             int index = 1;
             Document doc = new Document();
             doc.put("TimeInstant",DateTimeFormatter.ISO_INSTANT.format(max_date).replace('T',' ').replace("Z",".0"));
@@ -437,6 +437,7 @@ public class mainLoop {
                 index++;
             }
             result.add(doc);
+            max_date = max_date.plusSeconds(time);
         }
 
         return result;
