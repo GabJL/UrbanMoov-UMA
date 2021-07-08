@@ -35,6 +35,10 @@ public class TrainedModel {
     }
 
     public ArrayList<ArrayList<Double>> getPrediction(){
+        return getPrediction(false, 0);
+    }
+
+    public ArrayList<ArrayList<Double>> getPrediction(boolean f, int fl){
         ArrayList<ArrayList<Double>> a = null;
         Integer number = null;
         switch(getAlgorithmConfiguration().getPrediction()){
@@ -51,7 +55,10 @@ public class TrainedModel {
 
         getNet().setParameters(getAlgorithmConfiguration().getWeights());
         try {
-            a = getNet().predict(getDs().getTestData(), number);
+            if(!f)
+                a = getNet().predict(getDs().getTestData(), number);
+            else
+                a = getNet().predict(getDs().getTestData(), number, fl);
         } catch (Exception e) {
             e.printStackTrace();
         }
